@@ -6,12 +6,14 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild', // Use esbuild instead of terser for faster builds
     rollupOptions: {
       input: {
         main: './index.html'
       }
-    }
+    },
+    // Disable chunk size warnings for production
+    chunkSizeWarningLimit: 1000
   },
   
   // Development server configuration
@@ -23,7 +25,7 @@ export default defineConfig({
   
   // Environment variables
   define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development')
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
   },
   
   // Base path for deployment

@@ -1,58 +1,45 @@
 
 const CONFIG = {
-    
     getApiUrl: () => {
-        // For local development, point to the local server.
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             return 'http://127.0.0.1:8000';
         }
         
-        // For Vercel production, try multiple ways to get the API URL
-        
-        // 1. Check Vite environment variables (works with Vite build)
         try {
             if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== 'API_URL_NOT_SET') {
                 return import.meta.env.VITE_API_URL;
             }
         } catch (e) {
-            // import.meta.env not available, continue with other methods
         }
-        
         
         if (typeof window !== 'undefined' && window.ENV_CONFIG && window.ENV_CONFIG.API_URL && !window.ENV_CONFIG.API_URL.includes('%')) {
             return window.ENV_CONFIG.API_URL;
         }
         
-        
         if (typeof window !== 'undefined' && window.VITE_API_URL) {
             return window.VITE_API_URL;
         }
-        
         
         const metaApiUrl = document.querySelector('meta[name="api-url"]');
         if (metaApiUrl) {
             return metaApiUrl.getAttribute('content');
         }
         
-        // 5. Fallback for development/testing
         return 'API_URL_NOT_SET';
     },
-    
     
     isDevelopment: () => {
         return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     },
     endpoints: {
         analyze: '/analyze',
-        health: '/' // Health check endpoint
+        health: '/'
     }
 };
 
-// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 DOM loaded, initializing application...');
     
-    // File input handling
     const fileInput = document.getElementById('fileInput');
     const page1 = document.getElementById('page1');
     const page2 = document.getElementById('page2');
@@ -62,7 +49,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const analysisResults = document.getElementById('analysisResults');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // Debug: Check if all elements are found
     console.log('🔍 DOM Elements Check:', {
         fileInput: !!fileInput,
         page1: !!page1,
@@ -74,18 +60,17 @@ document.addEventListener('DOMContentLoaded', function() {
         downloadBtn: !!downloadBtn
     });
 
-    // Check if fileInput exists before adding event listener
     if (!fileInput) {
         console.error('❌ File input element not found!');
         return;
     }
 
-    // Show current configuration in console for debugging
     console.log('🔧 App Configuration:', {
         environment: CONFIG.isDevelopment() ? 'Development' : 'Production',
         apiUrl: CONFIG.getApiUrl(),
         hostname: window.location.hostname
-    });// Handle file selection
+    });
+
 fileInput.addEventListener('change', function(event) {
     console.log('🔍 File input changed, event triggered');
     const file = event.target.files[0];
@@ -93,7 +78,6 @@ fileInput.addEventListener('change', function(event) {
     if (file) {
         console.log('📁 File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
         
-        // Validate file type
         const validTypes = ['image/png', 'image/jpg', 'image/jpeg'];
         if (!validTypes.includes(file.type)) {
             console.log('❌ Invalid file type:', file.type);
@@ -101,7 +85,6 @@ fileInput.addEventListener('change', function(event) {
             return;
         }
 
-        // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
             console.log('❌ File too large:', file.size);
             alert('File size should be less than 10MB.');
@@ -109,31 +92,25 @@ fileInput.addEventListener('change', function(event) {
         }
 
         console.log('✅ File validation passed, showing loading screen');
-        // Show loading screen
         loading.style.display = 'flex';
         
-        // Create file reader to display image
         const reader = new FileReader();
         reader.onload = function(e) {
             console.log('📷 Image loaded by FileReader, transitioning to page 2');
-            // Hide loading after a realistic delay
             setTimeout(() => {
                 console.log('🔄 Starting page transition...');
-                // Set the uploaded image
                 xrayImage.src = e.target.result;
                 xrayImage.style.display = 'block';
                 xrayPlaceholder.style.display = 'none';
                 
-                // Hide page 1, show page 2
                 page1.style.display = 'none';
                 page2.style.display = 'block';
                 loading.style.display = 'none';
                 console.log('✅ Page transition completed, starting analysis...');
                 
-                // Call real API for analysis
                 performAnalysis(file);
                 
-            }, 1500); // Realistic loading time
+            }, 1500);
         };
         
         reader.onerror = function(error) {
@@ -149,30 +126,23 @@ fileInput.addEventListener('change', function(event) {
     }
     });
 
-    // Real API analysis call
     async function performAnalysis(file) {
         console.log('🔬 Starting performAnalysis function...');
-        // Show loading state in analysis box
         analysisResults.innerHTML = '<div style="text-align: center; color: #666;">Analyzing X-Ray scan...</div>';
         
         try {
-            // Create FormData to send file to backend
             const formData = new FormData();
             formData.append('image', file);
             
-            // Get API URL from configuration
             const apiUrl = CONFIG.getApiUrl();
             const endpoint = `${apiUrl}${CONFIG.endpoints.analyze}`;
             
             console.log('📡 Making API request to:', endpoint);
             
-            // Call the backend API
             const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
-                // Add headers for CORS if needed
                 headers: {
-                    // Don't set Content-Type - let browser set it with boundary for FormData
                 }
             });
             
@@ -185,13 +155,10 @@ fileInput.addEventListener('change', function(event) {
             
             console.log('✅ Analysis completed successfully');
             
-            // Store analysis data globally for PDF generation
             window.currentAnalysisData = data;
             
-            // Display the results
             displayAnalysisResults(data);
             
-            // Enable download button
             downloadBtn.disabled = false;
             
         } catch (error) {
@@ -223,20 +190,18 @@ fileInput.addEventListener('change', function(event) {
         }
     }
 
-    // Display analysis results
     function displayAnalysisResults(data) {
         console.log('🎨 Displaying analysis results:', data);
-        const { probabilities, heatmap_image, report_text } = data;    // Create the results HTML
+        const { probabilities, heatmap_image, report_text } = data;
     let resultsHTML = '<div class="analysis-content">';
     
-    // Top 5 Probabilities Section
     if (probabilities) {
         resultsHTML += '<h3>Top Observations:</h3>';
         resultsHTML += '<div class="probabilities-container">';
         
         Object.entries(probabilities).forEach(([condition, probability], index) => {
             const percentage = (probability * 100).toFixed(1);
-            const barWidth = Math.max(percentage * 0.8, 5); // Minimum 5% width for visibility
+            const barWidth = Math.max(percentage * 0.8, 5);
             
             resultsHTML += `
                 <div class="probability-item">
@@ -253,7 +218,6 @@ fileInput.addEventListener('change', function(event) {
         resultsHTML += '</div>';
     }
     
-    // Heatmap Section
     if (heatmap_image) {
         resultsHTML += '<h3>Heatmap Visualization:</h3>';
         resultsHTML += `
@@ -266,11 +230,9 @@ fileInput.addEventListener('change', function(event) {
         `;
     }
     
-    // AI Report Section
     if (report_text) {
         resultsHTML += '<h3 style="margin-bottom: 15px; color: #4a4a8a;">AI Summary:</h3>';
         
-        // Parse the report text for better formatting
         const formattedReport = formatAIReport(report_text);
         
         resultsHTML += `
@@ -280,7 +242,6 @@ fileInput.addEventListener('change', function(event) {
         `;
     }
     
-    // Disclaimer
     resultsHTML += `
         <div class="disclaimer">
             <strong>Disclaimer:</strong> This is an AI-assisted preliminary analysis. 
@@ -290,19 +251,16 @@ fileInput.addEventListener('change', function(event) {
     
     resultsHTML += '</div>';
     
-    // Store analysis data for PDF generation
     window.currentAnalysisData = data;
     
     analysisResults.innerHTML = resultsHTML;
     }
 
-    // Format AI Report for better display
     function formatAIReport(reportText) {
         if (!reportText) return '';
         
         let formattedHTML = '';
         
-        // Split the report into sections
         const lines = reportText.split('\n').filter(line => line.trim() !== '');
         
         let currentSection = '';
@@ -310,7 +268,6 @@ fileInput.addEventListener('change', function(event) {
         lines.forEach(line => {
             const trimmedLine = line.trim();
             
-            // Check for section headers
             if (trimmedLine.includes('**FINDINGS:**') || trimmedLine.includes('FINDINGS:')) {
                 currentSection = 'findings';
                 formattedHTML += '<div class="summary-findings">';
@@ -326,18 +283,15 @@ fileInput.addEventListener('change', function(event) {
                 formattedHTML += '<div class="summary-recommendation">';
                 formattedHTML += '<h4>📋 Recommendation</h4>';
             } else if (trimmedLine && !trimmedLine.startsWith('**') && !trimmedLine.endsWith('**')) {
-                // Regular content line
-                const cleanLine = trimmedLine.replace(/\*\*/g, ''); // Remove any remaining ** markers
+                const cleanLine = trimmedLine.replace(/\*\*/g, '');
                 formattedHTML += `<p>${cleanLine}</p>`;
             }
         });
         
-        // Close any open section
         if (currentSection) {
             formattedHTML += '</div>';
         }
         
-        // If no sections were found, display as simple formatted text
         if (!formattedHTML) {
             formattedHTML = `<div class="summary-findings"><p>${reportText.replace(/\n/g, '<br>')}</p></div>`;
         }
@@ -345,14 +299,12 @@ fileInput.addEventListener('change', function(event) {
         return formattedHTML;
     }
 
-    // Download PDF functionality
     downloadBtn.addEventListener('click', function() {
         if (!window.currentAnalysisData) {
             alert('No analysis data available for PDF generation.');
             return;
         }
 
-        // For now, create a simple text report that can be saved
         const { probabilities, report_text } = window.currentAnalysisData;
         
         let reportContent = 'CHEST X-RAY ANALYSIS REPORT\n';
@@ -377,7 +329,6 @@ fileInput.addEventListener('change', function(event) {
         reportContent += '-----------\n';
         reportContent += 'This is an AI-assisted preliminary analysis. Always consult with qualified medical professionals for diagnosis and treatment decisions.\n';
         
-        // Create and download the text file
         const blob = new Blob([reportContent], { type: 'text/plain' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -387,12 +338,8 @@ fileInput.addEventListener('change', function(event) {
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
-        // TODO: Implement PDF generation API endpoint in backend
-        // This could call a new endpoint like /generate-pdf that creates a proper PDF report
     });
 
-    // Drag and drop functionality
     const uploadContainer = document.querySelector('.upload-container');
 
     uploadContainer.addEventListener('dragover', function(e) {
@@ -416,38 +363,30 @@ fileInput.addEventListener('change', function(event) {
         if (files.length > 0) {
             const file = files[0];
             
-            // Validate file type
             const validTypes = ['image/png', 'image/jpg', 'image/jpeg'];
             if (!validTypes.includes(file.type)) {
                 alert('Please upload a PNG or JPG file.');
                 return;
             }
 
-            // Validate file size (max 10MB)
             if (file.size > 10 * 1024 * 1024) {
                 alert('File size should be less than 10MB.');
                 return;
             }
 
-            // Show loading screen
             loading.style.display = 'flex';
             
-            // Create file reader to display image
             const reader = new FileReader();
             reader.onload = function(e) {
-                // Hide loading after a realistic delay
                 setTimeout(() => {
-                    // Set the uploaded image
                     xrayImage.src = e.target.result;
                     xrayImage.style.display = 'block';
                     xrayPlaceholder.style.display = 'none';
                     
-                    // Hide page 1, show page 2
                     page1.style.display = 'none';
                     page2.style.display = 'block';
                     loading.style.display = 'none';
                     
-                    // Call real API for analysis
                     performAnalysis(file);
                     
                 }, 1500);
@@ -456,7 +395,6 @@ fileInput.addEventListener('change', function(event) {
         }
     });
 
-    // Keyboard accessibility
     uploadContainer.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -464,12 +402,10 @@ fileInput.addEventListener('change', function(event) {
         }
     });
 
-    // Make upload container focusable
     uploadContainer.setAttribute('tabindex', '0');
     uploadContainer.setAttribute('role', 'button');
     uploadContainer.setAttribute('aria-label', 'Upload chest X-ray scan');
 
-    // Reset functionality (optional - can be triggered programmatically)
     function resetApp() {
         page1.style.display = 'flex';
         page2.style.display = 'none';
@@ -480,14 +416,11 @@ fileInput.addEventListener('change', function(event) {
         analysisResults.innerHTML = 'Analysis results will appear here...';
         downloadBtn.disabled = false;
         
-        // Clear stored analysis data
         delete window.currentAnalysisData;
     }
 
-// Add this to global scope for debugging/testing
 window.resetApp = resetApp;
 
-// API connectivity test function
 async function testApiConnection() {
     const apiUrl = CONFIG.getApiUrl();
     console.log('🔍 Testing API connection to:', apiUrl);
@@ -509,11 +442,9 @@ async function testApiConnection() {
     }
 }
 
-// Initialize app and check API connectivity on load
 window.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 App initialized');
     
-    // Test API connection in development
     if (CONFIG.isDevelopment()) {
         console.log('🔍 Development mode - testing API connection...');
         setTimeout(() => {
@@ -526,38 +457,4 @@ window.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-/*
-BACKEND API INTEGRATION COMPLETE:
-
-✅ Image Upload & Analysis: POST /analyze
-   - Sends FormData with image file
-   - Returns: { probabilities: {...}, heatmap_image: "base64...", report_text: "..." }
-
-✅ Real-time Analysis Display:
-   - Top 5 pathology probabilities with visual bars
-   - Heatmap visualization overlay
-   - AI-generated radiology report summary
-   - Proper error handling for API failures
-
-✅ Data Flow:
-   1. User uploads X-ray image (drag & drop or click)
-   2. Image sent to backend ML model for analysis
-   3. Model returns probabilities, generates heatmap, calls Gemini API
-   4. Frontend displays results in structured format
-   5. User can download text report (PDF generation can be added)
-
-⚠️ Requirements:
-   - Backend server must be running on http://127.0.0.1:8000
-   - CORS enabled in FastAPI backend
-   - Gemini API key configured for AI reports
-   - Model weights (NIHDenseNet.pth) loaded
-
-🔧 Future Enhancements:
-   - Add PDF generation endpoint to backend
-   - Implement user authentication
-   - Add image history/storage
-   - Enhanced error handling and retry mechanisms
-   - Real-time progress indicators for long analyses
-*/
-
-}); // End of DOMContentLoaded event listener
+});

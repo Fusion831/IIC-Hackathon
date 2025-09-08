@@ -74,7 +74,7 @@ class DenseNetChestXRayModel(nn.Module):
         try:
             backbone = build_backbone(weights)
         except Exception:
-            # Likely SSL or network error fetching pretrained weights; fall back to random init
+            
             backbone = build_backbone(None)
 
         feature_size = backbone.classifier.in_features
@@ -151,13 +151,13 @@ class DenseNetChestXRayModel(nn.Module):
         def forward_hook(_m: nn.Module, _inp: Tuple[torch.Tensor], out: torch.Tensor) -> None:
             # Cache activations
             self._cached_activations = out.detach()
-            # Only register gradient hook when gradients are tracked
+            
             if out.requires_grad:
                 def save_grad(grad: torch.Tensor) -> None:
                     self._cached_gradients = grad.detach()
                 out.register_hook(save_grad)
 
-        # Only a forward hook; avoid register_full_backward_hook which can conflict with in-place ops
+       
         target_layer.register_forward_hook(forward_hook)
 
     def grad_cam(
