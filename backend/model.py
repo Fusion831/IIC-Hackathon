@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
+import pickle
+import os
 
 import torch
 import torch.nn as nn
@@ -217,3 +219,183 @@ def create_default_transforms(image_size: int = 224) -> transforms.Compose:
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
     )
+
+
+class FineTunedDenseNet:
+    """
+    Primary fine-tuned DenseNet model wrapper that maintains all functionality
+    including heatmap generation and grad-cam capabilities
+    """
+    
+    def __init__(self, model_path: str = "densenet_chestxray.pkl"):
+        self.model: Optional[DenseNetChestXRayModel] = None
+        self.model_path = model_path
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.class_names = NIH14_CLASSES
+        self.load_model()
+    
+    def load_model(self) -> bool:
+        """Load the fine-tuned DenseNet model from PKL"""
+        try:
+            if not os.path.exists(self.model_path):
+                print(f"Fine-tuned model not found at {self.model_path}")
+                return False
+                
+            # Try loading with torch.load first (for PyTorch models)
+            try:
+                loaded_data = torch.load(self.model_path, map_location='cpu')
+            except Exception:
+                # Fallback to pickle.load if torch.load fails
+                with open(self.model_path, 'rb') as f:
+                    loaded_data = pickle.load(f)
+            
+            # Check if it's already a DenseNetChestXRayModel instance
+            if isinstance(loaded_data, DenseNetChestXRayModel):
+                self.model = loaded_data
+            elif isinstance(loaded_data, dict):
+                # Check if it has nested state_dict (common in saved models)
+                if 'state_dict' in loaded_data:
+                    # Extract the actual state_dict
+                    state_dict = loaded_data['state_dict']
+                    
+                    # Extract other metadata if available
+                    num_classes = loaded_data.get('num_classes', len(self.class_names))
+                    variant = loaded_data.get('variant', 'densenet121')
+                    
+                    # Create model and load state dict
+                    self.model = DenseNetChestXRayModel(
+                        num_classes=num_classes,
+                        model_variant=variant,
+                        pretrained=False,
+                        class_names=self.class_names
+                    )
+                    self.model.load_state_dict(state_dict)
+                else:
+                    # If it's a direct state dict, create model and load it
+                    self.model = DenseNetChestXRayModel(
+                        num_classes=len(self.class_names),
+                        model_variant="densenet121",
+                        pretrained=False,
+                        class_names=self.class_names
+                    )
+                    self.model.load_state_dict(loaded_data)
+            elif hasattr(loaded_data, 'state_dict'):
+                # If it's a PyTorch model with state_dict method
+                self.model = DenseNetChestXRayModel(
+                    num_classes=len(self.class_names),
+                    model_variant="densenet121",
+                    pretrained=False,
+                    class_names=self.class_names
+                )
+                self.model.load_state_dict(loaded_data.state_dict())
+            else:
+                print(f"Unsupported model format in PKL file: {type(loaded_data)}")
+                return False
+            
+            # Move to appropriate device
+            self.model = self.model.to(self.device)
+            self.model.eval()
+            
+            print(f"Fine-tuned DenseNet loaded successfully from {self.model_path}")
+            print(f"Using device: {self.device}")
+            return True
+            
+        except Exception as e:
+            print(f"Error loading fine-tuned DenseNet: {e}")
+            return False
+    
+    def predict_proba(self, image_tensor: torch.Tensor) -> torch.Tensor:
+        """Make prediction using the fine-tuned DenseNet model"""
+        if self.model is None:
+            raise ValueError("Fine-tuned model not loaded")
+        
+        # Move tensor to same device as model
+        image_tensor = image_tensor.to(self.device)
+        
+        # Use the model's predict_proba method
+        return self.model.predict_proba(image_tensor)
+    
+    def grad_cam(self, image_tensor: torch.Tensor, class_index: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Generate grad-cam heatmap using the fine-tuned model"""
+        if self.model is None:
+            raise ValueError("Fine-tuned model not loaded")
+        
+        # Move tensor to same device as model
+        image_tensor = image_tensor.to(self.device)
+        
+        # Use the model's grad_cam method
+        return self.model.grad_cam(image_tensor, class_index=class_index)
+    
+    def get_model(self) -> Optional[DenseNetChestXRayModel]:
+        """Return the underlying model"""
+        return self.model
+
+
+class OriginalDenseNet:
+    """
+    Backup original DenseNet model with same interface as FineTunedDenseNet
+    """
+    
+    def __init__(self):
+        self.model: Optional[DenseNetChestXRayModel] = None
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.class_names = NIH14_CLASSES
+    
+    def load_model(self, model_path: str = "NIHDenseNet.pth") -> bool:
+        """Load original PyTorch model as backup"""
+        try:
+            # Create model instance
+            self.model = DenseNetChestXRayModel(
+                num_classes=len(self.class_names),
+                model_variant="densenet121",
+                pretrained=False,
+                class_names=self.class_names
+            )
+            
+            # Load state dict
+            if torch.cuda.is_available():
+                state_dict = torch.load(model_path)
+            else:
+                state_dict = torch.load(model_path, map_location='cpu')
+            
+            self.model.load_state_dict(state_dict)
+            self.model = self.model.to(self.device)
+            self.model.eval()
+            
+            print("Backup original DenseNet loaded successfully")
+            return True
+            
+        except Exception as e:
+            print(f"Error loading backup model: {e}")
+            return False
+    
+    def predict_proba(self, image_tensor: torch.Tensor) -> torch.Tensor:
+        """Backup prediction method"""
+        if self.model is None:
+            raise ValueError("Backup model not loaded")
+        
+        # Move tensor to same device as model
+        image_tensor = image_tensor.to(self.device)
+        
+        # Use the model's predict_proba method
+        return self.model.predict_proba(image_tensor)
+    
+    def grad_cam(self, image_tensor: torch.Tensor, class_index: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Generate grad-cam heatmap using the original model"""
+        if self.model is None:
+            raise ValueError("Backup model not loaded")
+        
+        # Move tensor to same device as model
+        image_tensor = image_tensor.to(self.device)
+        
+        # Use the model's grad_cam method
+        return self.model.grad_cam(image_tensor, class_index=class_index)
+    
+    def get_model(self) -> Optional[DenseNetChestXRayModel]:
+        """Return the underlying model"""
+        return self.model
+
+
+# Initialize model instances
+primary_model = FineTunedDenseNet()
+backup_model = OriginalDenseNet()

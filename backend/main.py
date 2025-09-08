@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from typing import Dict, Optional, List
 
 
-from model import DenseNetChestXRayModel
+from model import DenseNetChestXRayModel, primary_model, backup_model
 from image_utils import preprocess_image_for_inference
 
 
@@ -131,13 +131,34 @@ async def generate_radiology_report(probabilities: Dict[str, float]) -> Optional
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"--- Using device: {device.type.upper()} ---")
 
+# Initialize models
+current_model = None
+model_type = "none"
 
-model = DenseNetChestXRayModel()
-print(f"--- Model initialized with default ImageNet weights. ---")
+# Try to load primary fine-tuned model first
+if primary_model.model is not None:
+    current_model = primary_model
+    model_type = "fine_tuned"
+    print(f"--- Primary fine-tuned DenseNet loaded successfully ---")
+else:
+    # Try to load backup model if primary failed
+    print("--- Primary model failed, attempting to load backup model ---")
+    backup_loaded = backup_model.load_model("NIHDenseNet.pth")
+    if backup_loaded:
+        current_model = backup_model
+        model_type = "backup"
+        print(f"--- Backup original DenseNet loaded successfully ---")
+    else:
+        print("--- ERROR: No models could be loaded! ---")
+        # Fallback to basic model initialization
+        current_model = DenseNetChestXRayModel()
+        current_model.to(device)
+        current_model.eval()
+        model_type = "basic"
+        print(f"--- Fallback to basic DenseNet with ImageNet weights ---")
 
-model.to(device)
-model.eval()
-print(f"--- Rad-Insight Model is loaded on {device.type.upper()} and ready for inference. ---")
+print(f"--- Active model type: {model_type.upper()} ---")
+print(f"--- Model is ready for inference on {device.type.upper()} ---")
 
 
 app = FastAPI(title="Rad-Insight API")
@@ -167,10 +188,28 @@ async def analyze_cxr(image: UploadFile = File(...)):
 
     
     try:
-        probs = model.predict_proba(input_tensor)
+        # Check if current_model is available
+        if current_model is None:
+            raise HTTPException(status_code=500, detail="No model available for inference")
+            
+        # Use current_model which is either primary_model or backup_model
+        if hasattr(current_model, 'predict_proba'):
+            # For wrapper models (FineTunedDenseNet or OriginalDenseNet)
+            probs = current_model.predict_proba(input_tensor)
+        else:
+            # For direct DenseNetChestXRayModel instances
+            probs = current_model.predict_proba(input_tensor)
+            
         probs_list = probs.cpu().numpy().squeeze()
-        all_probabilities = {label: float(prob) for label, prob in zip(model.class_names, probs_list)}
         
+        # Get class names from the current model
+        if hasattr(current_model, 'class_names'):
+            class_names = current_model.class_names
+        else:
+            from model import NIH14_CLASSES
+            class_names = NIH14_CLASSES
+            
+        all_probabilities = {label: float(prob) for label, prob in zip(class_names, probs_list)}
         
         sorted_probs = sorted(all_probabilities.items(), key=lambda x: x[1], reverse=True)
         top_5_probabilities = dict(sorted_probs[:5])
@@ -183,18 +222,26 @@ async def analyze_cxr(image: UploadFile = File(...)):
     
     heatmap_b64_string = None
     try:
-        highest_prob_index = int(np.argmax(probs_list))
-        heatmap_tensor, _ = model.grad_cam(input_tensor, class_index=highest_prob_index)
-        
-        heatmap_np = heatmap_tensor.squeeze().cpu().numpy()
-        original_image_np = np.array(pil_image.resize((224, 224))) / 255.0
-        
-        overlay = show_cam_on_image(original_image_np, heatmap_np)
-        overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
-        success, buffer = cv2.imencode(".jpg", overlay_bgr)
-        
-        if success:
-            heatmap_b64_string = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
+        if current_model is not None:
+            highest_prob_index = int(np.argmax(probs_list))
+            
+            # Generate heatmap using current model
+            if hasattr(current_model, 'grad_cam'):
+                # For wrapper models (FineTunedDenseNet or OriginalDenseNet)
+                heatmap_tensor, _ = current_model.grad_cam(input_tensor, class_index=highest_prob_index)
+            else:
+                # For direct DenseNetChestXRayModel instances
+                heatmap_tensor, _ = current_model.grad_cam(input_tensor, class_index=highest_prob_index)
+            
+            heatmap_np = heatmap_tensor.squeeze().cpu().numpy()
+            original_image_np = np.array(pil_image.resize((224, 224))) / 255.0
+            
+            overlay = show_cam_on_image(original_image_np, heatmap_np)
+            overlay_bgr = cv2.cvtColor(overlay, cv2.COLOR_RGB2BGR)
+            success, buffer = cv2.imencode(".jpg", overlay_bgr)
+            
+            if success:
+                heatmap_b64_string = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
     except Exception as e:
         print(f"--- ERROR generating Grad-CAM: {e} ---")
 
