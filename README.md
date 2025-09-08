@@ -428,23 +428,6 @@ curl -X POST http://localhost:8000/analyze \
 
 ---
 
-## 📞 Contact
-
-### 👥 **Development Team**
-
-- **Project Lead**: [GitHub Profile](https://github.com/Fusion831)
-- **Repository**: [IIC-Hackathon](https://github.com/Fusion831/IIC-Hackathon)
-- **Issues**: [GitHub Issues](https://github.com/Fusion831/IIC-Hackathon/issues)
-
-### 📧 **Get in Touch**
-
-- **General Inquiries**: Create an issue on GitHub
-- **Bug Reports**: Use the issue tracker
-- **Feature Requests**: Open a feature request issue
-- **Security**: Email security issues privately
-
----
-
 <div align="center">
 
 
