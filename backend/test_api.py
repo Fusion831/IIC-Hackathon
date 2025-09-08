@@ -62,7 +62,7 @@ def run_api_test():
                         
                         image_data = base64.b64decode(encoded)
                         
-                        output_filename = "heatmap_from_api.jpg"
+                        output_filename = "heatmap_from_api.png"
                         with open(output_filename, "wb") as f:
                             f.write(image_data)
                         print(f"  - Heatmap visually saved to '{output_filename}' for inspection.")
