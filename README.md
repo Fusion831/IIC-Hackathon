@@ -379,55 +379,11 @@ curl -X POST http://localhost:8000/analyze \
   -F "image=@test_xray.jpg"
 ```
 
-### 📦 **Deployment**
 
-#### **Docker Deployment**
-```dockerfile
-# Backend Dockerfile
-FROM python:3.13-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
 
-#### **Vercel Deployment** (Frontend)
-```json
-{
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
-    }
-  ]
-}
-```
 
-### 🔄 **CI/CD Pipeline**
 
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy Application
-on:
-  push:
-    branches: [main]
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Setup Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.13'
-      - name: Install dependencies
-        run: pip install -r backend/requirements.txt
-      - name: Run tests
-        run: pytest backend/tests/
-```
 
 ---
 
