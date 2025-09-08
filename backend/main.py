@@ -1,81 +1,156 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Dict, Optional
-import torch
-import numpy as np
-import base64
+import os
+from dotenv import load_dotenv
 import uvicorn
+import base64
+import numpy as np
+import torch
 import cv2
 from PIL import Image
 from io import BytesIO
+from collections import OrderedDict
+
+try:
+    import httpx
+    HTTPX_AVAILABLE = True
+except ImportError:
+    HTTPX_AVAILABLE = False
+    print("--- WARNING: httpx not installed. AI report generation will be disabled. ---")
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Dict, Optional, List
 
 
-from model import DenseNetChestXRayModel, NIH14_CLASSES
+from model import DenseNetChestXRayModel
 from image_utils import preprocess_image_for_inference
 
-# --- Utility for Visualization ---
+
+load_dotenv()
+
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Validate and log API key status
+if GEMINI_API_KEY:
+    
+    masked_key = GEMINI_API_KEY[:8] + "..." + GEMINI_API_KEY[-4:] if len(GEMINI_API_KEY) > 12 else "***"
+    print(f"--- GEMINI API key loaded successfully (masked: {masked_key}) ---")
+else:
+    print("--- WARNING: GEMINI_API_KEY not found in environment variables ---")
+    print("--- Make sure your .env file contains: GEMINI_API_KEY=your_actual_key ---")
+
+
 def show_cam_on_image(img: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """ 
-    Overlays a heatmap onto a numpy image.
-    This applies a colormap to the raw heatmap and merges it with the original image.
-    """
-    # Ensure mask is properly shaped and normalized
+    """ Overlays a heatmap onto a numpy image using a weighted blend. """
+    
     mask_normalized = np.clip(mask, 0, 1)
     mask_uint8 = (255 * mask_normalized).astype(np.uint8)
+    
+    
     heatmap = cv2.applyColorMap(mask_uint8, cv2.COLORMAP_JET)
-    heatmap = np.float32(heatmap) / 255
-    cam = heatmap + np.float32(img)
-    cam = cam / np.max(cam)
-    result = (255 * cam).astype(np.uint8)  # type: ignore
-    return result  # type: ignore
+    heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    
+    
+    img_uint8 = (img * 255).astype(np.uint8) if img.max() <= 1.0 else img.astype(np.uint8)
+    
+    
+    blended_image = cv2.addWeighted(img_uint8, 0.6, heatmap, 0.4, 0)
+    return blended_image
 
 
-MODEL_WEIGHTS_PATH = "NIHDenseNet.pth"
+async def generate_radiology_report(probabilities: Dict[str, float]) -> Optional[str]:
+    """ Calls the Gemini API to generate a structured radiology report from model probabilities. """
+    if not HTTPX_AVAILABLE:
+        print("--- ERROR: httpx not available for API calls ---")
+        return "AI report generation is disabled. Please install httpx: pip install httpx"
+    
+    if not GEMINI_API_KEY:
+        print("--- ERROR: GEMINI_API_KEY not configured ---")
+        return "AI report generation is disabled. Please configure the API key via an environment variable."
+
+    print("--- Calling Gemini API for report generation ---")
+    gemini_api_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+    
+    
+    sorted_probs = sorted(probabilities.items(), key=lambda item: item[1], reverse=True)
+    top_finding = sorted_probs[0]
+    other_notable = [f"{p[0]} ({p[1]:.1%})" for p in sorted_probs[1:4] if p[1] > 0.2]
+
+    prompt = f"""
+    You are an AI assistant helping a radiologist draft a report based on findings from a computer vision model.
+    Your task is to generate a structured, professional summary. Do NOT invent clinical details.
+    
+    The AI model's top predicted finding is: {top_finding[0]} with a confidence of {top_finding[1]:.1%}.
+    Other notable findings with moderate confidence include: {', '.join(other_notable) if other_notable else 'None'}.
+
+    Based ONLY on this information, generate a report with the following sections:
+    - FINDINGS: A one-paragraph summary of the AI model's predictions.
+    - IMPRESSION: A one-sentence conclusion based on the primary finding.
+    - RECOMMENDATION: A brief, generic recommendation for clinical correlation.
+    """
+
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            print(f"--- Making API request to Gemini ---")
+            response = await client.post(gemini_api_url, json=payload)
+            
+            print(f"--- Gemini API response status: {response.status_code} ---")
+            
+            if response.status_code != 200:
+                print(f"--- ERROR: Gemini API returned status {response.status_code} ---")
+                print(f"--- Response: {response.text} ---")
+                return f"Error: Gemini API returned status {response.status_code}"
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            # Safely navigate the JSON response
+            report_text = result.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", None)
+            
+            if report_text:
+                print("--- Successfully generated AI report ---")
+                return report_text
+            else:
+                print("--- ERROR: No text content in Gemini response ---")
+                return "Error: No content returned from Gemini API"
+                
+    except httpx.TimeoutException:
+        print("--- ERROR: Gemini API request timed out ---")
+        return "Error: API request timed out"
+    except httpx.RequestError as e:
+        print(f"--- ERROR: Network error calling Gemini API: {e} ---")
+        return "Error: Network error occurred"
+    except Exception as e:
+        print(f"--- ERROR calling Gemini API: {e} ---")
+        return "Error: Could not generate AI report."
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"--- Using device: {device.type.upper()} ---")
 
 
-# --- FastAPI App Setup ---
-app = FastAPI(title="Rad-Insight API")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# --- Model Loading ---
-# Instantiate the model
-model = DenseNetChestXRayModel(num_classes=len(NIH14_CLASSES), pretrained=True)
-
-try:
-    # **UPDATED**: Load the weights directly onto the selected device
-    model.load_state_dict(torch.load(MODEL_WEIGHTS_PATH, map_location=device))
-    print(f"--- Successfully loaded custom model weights from '{MODEL_WEIGHTS_PATH}' ---")
-except FileNotFoundError:
-    print(f"\n--- WARNING: Custom weights '{MODEL_WEIGHTS_PATH}' not found. Using ImageNet base. ---")
-except Exception as e:
-    print(f"An unexpected error occurred loading model weights: {e}")
-
+model = DenseNetChestXRayModel()
+print(f"--- Model initialized with default ImageNet weights. ---")
 
 model.to(device)
 model.eval()
 print(f"--- Rad-Insight Model is loaded on {device.type.upper()} and ready for inference. ---")
 
-# --- API Response Models ---
+
+app = FastAPI(title="Rad-Insight API")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
 class AnalysisResponse(BaseModel):
     probabilities: Dict[str, float]
     heatmap_image: Optional[str]
+    report_text: Optional[str]
 
-# --- API Endpoints ---
 @app.get("/")
 def read_root():
-    return {"status": "Rad-Insight API is running. Ready to analyze."}
+    return {"status": "Rad-Insight API is running with Live Inference and NLP Reporting."}
 
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_cxr(image: UploadFile = File(...)):
@@ -86,37 +161,30 @@ async def analyze_cxr(image: UploadFile = File(...)):
     
     try:
         pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
-        input_tensor = preprocess_image_for_inference(image_bytes)
-        
-        # **NEW**: Move the input tensor to the same device as the model (GPU)
-        input_tensor = input_tensor.to(device)
-        
+        input_tensor = preprocess_image_for_inference(image_bytes).to(device)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Image preprocessing failed: {e}")
 
+    
     try:
-        # No changes needed here; tensor and model are on the same device
         probs = model.predict_proba(input_tensor)
-        # Squeeze and move to CPU for NumPy conversion
-        probs_list = probs.cpu().numpy().squeeze() 
+        probs_list = probs.cpu().numpy().squeeze()
+        all_probabilities = {label: float(prob) for label, prob in zip(model.class_names, probs_list)}
+        
+        
+        sorted_probs = sorted(all_probabilities.items(), key=lambda x: x[1], reverse=True)
+        top_5_probabilities = dict(sorted_probs[:5])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model inference error: {str(e)}")
-
-    # Get all probabilities with their class names
-    all_probabilities = {label: float(prob) for label, prob in zip(NIH14_CLASSES, probs_list)}
     
-    # Sort probabilities in descending order and get top 5
-    sorted_probs = sorted(all_probabilities.items(), key=lambda x: x[1], reverse=True)
-    top_5_probabilities = dict(sorted_probs[:5])
+    
+    report_text = await generate_radiology_report(all_probabilities)
 
+    
     heatmap_b64_string = None
-    if np.any(probs_list):
+    try:
         highest_prob_index = int(np.argmax(probs_list))
-        
-        print(f"Generating heatmap for top prediction: '{NIH14_CLASSES[highest_prob_index]}'")
-        
         heatmap_tensor, _ = model.grad_cam(input_tensor, class_index=highest_prob_index)
-        
         
         heatmap_np = heatmap_tensor.squeeze().cpu().numpy()
         original_image_np = np.array(pil_image.resize((224, 224))) / 255.0
@@ -127,8 +195,16 @@ async def analyze_cxr(image: UploadFile = File(...)):
         
         if success:
             heatmap_b64_string = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
+    except Exception as e:
+        print(f"--- ERROR generating Grad-CAM: {e} ---")
 
-    return AnalysisResponse(probabilities=top_5_probabilities, heatmap_image=heatmap_b64_string)
+    return AnalysisResponse(
+        probabilities=top_5_probabilities,
+        heatmap_image=heatmap_b64_string,
+        report_text=report_text
+    )
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+

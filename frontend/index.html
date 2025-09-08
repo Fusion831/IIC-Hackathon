@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS - X-Ray Analysis</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Page 1: Upload Screen -->
+    <div class="page1" id="page1">
+        <div class="nexus-brand">NEXUS</div>
+        
+        <div class="main-title">ClairX</div>
+        
+        <!-- Upload Container -->
+        <div class="upload-container" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">⬆</div>
+            <div class="upload-text">Upload Chest X-Ray Scan</div>
+            <input type="file" id="fileInput" accept="image/png,image/jpg,image/jpeg" />
+        </div>
+    </div>
+
+    <!-- Page 2: Analysis Screen -->
+    <div class="page2" id="page2">
+        <div class="nexus-brand">NEXUS</div>
+        
+        <div class="analysis-container">
+            <!-- X-Ray Display Panel -->
+            <div class="xray-panel">
+                <div class="xray-placeholder" id="xrayPlaceholder">X-RAY</div>
+                <img class="xray-image" id="xrayImage" style="display: none;" alt="Uploaded X-Ray" />
+            </div>
+            
+            <!-- Analysis Results Panel -->
+            <div class="results-panel">
+                <h1 class="analysis-title">Analysis</h1>
+                
+                <!-- Analysis Results Box -->
+                <div class="analysis-box" id="analysisResults">
+                    <!-- Placeholder for API results -->
+                    Analysis results will appear here...
+                </div>
+                
+                <!-- Download Button -->
+                <button class="download-btn" id="downloadBtn">Download PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
