@@ -1,3 +1,30 @@
+// Configuration for different environments
+const CONFIG = {
+    // Determine environment and API URL
+    getApiUrl: () => {
+        // Check if we're in development (localhost)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return 'http://127.0.0.1:8000';
+        }
+        
+        
+        // Vercel will inject the API URL via environment variables
+        // This should be set in Vercel dashboard as VITE_API_URL
+        return import.meta.env.VITE_API_URL || 'API_URL_NOT_SET';
+    },
+    
+    // Development vs Production detection
+    isDevelopment: () => {
+        return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    },
+    
+    // API endpoints
+    endpoints: {
+        analyze: '/analyze',
+        health: '/'
+    }
+};
+
 // File input handling
 const fileInput = document.getElementById('fileInput');
 const page1 = document.getElementById('page1');
@@ -7,6 +34,13 @@ const xrayImage = document.getElementById('xrayImage');
 const xrayPlaceholder = document.getElementById('xrayPlaceholder');
 const analysisResults = document.getElementById('analysisResults');
 const downloadBtn = document.getElementById('downloadBtn');
+
+// Show current configuration in console for debugging
+console.log('🔧 App Configuration:', {
+    environment: CONFIG.isDevelopment() ? 'Development' : 'Production',
+    apiUrl: CONFIG.getApiUrl(),
+    hostname: window.location.hostname
+});
 
 // Handle file selection
 fileInput.addEventListener('change', function(event) {
@@ -63,17 +97,30 @@ async function performAnalysis(file) {
         const formData = new FormData();
         formData.append('image', file);
         
+        // Get API URL from configuration
+        const apiUrl = CONFIG.getApiUrl();
+        const endpoint = `${apiUrl}${CONFIG.endpoints.analyze}`;
+        
+        console.log('📡 Making API request to:', endpoint);
+        
         // Call the backend API
-        const response = await fetch('http://127.0.0.1:8000/analyze', {
+        const response = await fetch(endpoint, {
             method: 'POST',
-            body: formData
+            body: formData,
+            // Add headers for CORS if needed
+            headers: {
+                // Don't set Content-Type - let browser set it with boundary for FormData
+            }
         });
         
         if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`API request failed with status ${response.status}: ${errorText}`);
         }
         
         const data = await response.json();
+        
+        console.log('✅ Analysis completed successfully');
         
         // Display the results
         displayAnalysisResults(data);
@@ -82,14 +129,29 @@ async function performAnalysis(file) {
         downloadBtn.disabled = false;
         
     } catch (error) {
-        console.error('Error analyzing image:', error);
+        console.error('❌ Error analyzing image:', error);
+        
+        const apiUrl = CONFIG.getApiUrl();
+        const isLocal = CONFIG.isDevelopment();
+        
+        let errorMessage = '';
+        if (apiUrl === 'API_URL_NOT_SET') {
+            errorMessage = 'API URL not configured. Please check deployment configuration.';
+        } else {
+            errorMessage = error.message;
+        }
+        
         analysisResults.innerHTML = `
             <div style="text-align: center; color: #d32f2f;">
                 <h3 style="margin-bottom: 15px;">Analysis Failed</h3>
-                <p>Error: ${error.message}</p>
-                <p style="font-size: 14px; margin-top: 10px;">
-                    Please ensure the backend server is running on port 8000.
-                </p>
+                <p>Error: ${errorMessage}</p>
+                <div style="font-size: 14px; margin-top: 10px; color: #666;">
+                    <p><strong>Environment:</strong> ${isLocal ? 'Development' : 'Production'}</p>
+                    ${isLocal ? 
+                        '<p>Please ensure the backend server is running on port 8000.</p>' :
+                        '<p>Please check if the backend service is running.</p>'
+                    }
+                </div>
             </div>
         `;
     }
@@ -359,6 +421,45 @@ function resetApp() {
 
 // Add this to global scope for debugging/testing
 window.resetApp = resetApp;
+
+// API connectivity test function
+async function testApiConnection() {
+    const apiUrl = CONFIG.getApiUrl();
+    console.log('🔍 Testing API connection to:', apiUrl);
+    
+    try {
+        const response = await fetch(`${apiUrl}/`, {
+            method: 'GET',
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            alert(`✅ API Connection Successful!\n\nAPI Response: ${JSON.stringify(data, null, 2)}`);
+        } else {
+            alert(`⚠️ API responded but with status: ${response.status}\n\nCheck backend deployment.`);
+        }
+    } catch (error) {
+        alert(`❌ API Connection Failed!\n\nError: ${error.message}\n\nAPI URL: ${apiUrl}\n\nCheck:\n1. Backend is deployed and running\n2. CORS is configured\n3. API URL is correct`);
+    }
+}
+
+// Initialize app and check API connectivity on load
+window.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 App initialized');
+    
+    // Test API connection in development
+    if (CONFIG.isDevelopment()) {
+        console.log('🔍 Development mode - testing API connection...');
+        setTimeout(() => {
+            testApiConnection().catch(err => {
+                console.warn('⚠️ API connection test failed:', err.message);
+            });
+        }, 1000);
+    } else {
+        console.log('🌐 Production mode - API:', CONFIG.getApiUrl());
+    }
+});
 
 /*
 BACKEND API INTEGRATION COMPLETE:
