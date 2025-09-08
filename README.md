@@ -36,21 +36,6 @@
 
 ---
 
-## 🏆 Hackathon Achievements
-
-<div align="center">
-
-### 🥇 **Competition Highlights**
-
-| Achievement | Details |
-|-------------|---------|
-| 🏆 **Hackathon Project** | Advanced medical AI solution |
-| 🎯 **Innovation Focus** | Computer vision + Healthcare |
-| ⚡ **Technical Excellence** | State-of-the-art model architecture |
-| 🌟 **Impact Potential** | Real-world medical application |
-| 🚀 **Scalability** | Production-ready architecture |
-
-</div>
 
 ---
 
