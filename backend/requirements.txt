@@ -1,25 +1,18 @@
-# Core FastAPI dependencies
+
 fastapi==0.104.1
 uvicorn==0.24.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
 
-# PyTorch and Computer Vision
+
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.1.1
 torchvision==0.16.1
+
 pillow==10.1.0
-opencv-python==4.8.1.78
+opencv-python-headless==4.8.1.78
 numpy==1.25.2
-
-# HTTP client for API calls
 httpx==0.25.2
-
-# For AI report generation (Gemini API)
-google-generativeai==0.3.2
-
-# Additional utilities
 requests==2.31.0
 pydantic==2.4.2
-
-# For deployment (optional but recommended)
 gunicorn==21.2.0
