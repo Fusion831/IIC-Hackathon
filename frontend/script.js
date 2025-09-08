@@ -1,27 +1,36 @@
 // Configuration for different environments
 const CONFIG = {
-    // Determine environment and API URL
+    /**
+     * Determines the correct API URL based on the environment.
+     * @returns {string} The full base URL for the backend API.
+     */
     getApiUrl: () => {
-        // Check if we're in development (localhost)
+        // For local development, point to the local server.
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             return 'http://127.0.0.1:8000';
         }
         
-        // For production deployment
-        // In production, this should be set via build process or environment
-        // For now, return a placeholder that can be replaced during deployment
-        return window.VITE_API_URL || 'API_URL_NOT_SET';
+        // For production (Vercel), use the environment variable.
+        // The build tool will replace `import.meta.env.VITE_API_URL`
+        // with the value you set in the Vercel dashboard.
+        return import.meta.env.VITE_API_URL || 'API_URL_NOT_SET';
     },
     
-    // Development vs Production detection
+    /**
+     * Checks if the application is running in a local development environment.
+     * @returns {boolean} True if running on localhost, false otherwise.
+     */
     isDevelopment: () => {
         return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     },
     
-    // API endpoints
+    /**
+     * A map of API endpoint paths.
+     * This makes it easy to manage all endpoints from one place.
+     */
     endpoints: {
         analyze: '/analyze',
-        health: '/'
+        health: '/' // Health check endpoint
     }
 };
 
