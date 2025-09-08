@@ -85,6 +85,35 @@
 
 ---
 
+## 🖥️ User Interface Showcase
+
+### 📸 **Application Screenshots**
+
+<div align="center">
+
+#### **Landing Page**
+![Landing Page](images/landing.jpg)
+*Clean, professional interface with intuitive upload functionality*
+
+#### **First part of Analysis**
+![Upload Interface](images/starting.jpg)
+*Drag-and-drop X-ray upload with real-time validation*
+
+#### **Second Part of Analysis**
+![Analysis Results](images/ending.jpg)
+*Comprehensive analysis display with probabilities, heatmaps, and AI-generated reports*
+
+</div>
+
+### 🎨 **UI/UX Features**
+- **Responsive Design**: Seamless experience across all devices
+- **Medical-Grade Aesthetics**: Professional healthcare interface
+- **Intuitive Navigation**: Single-page application flow
+- **Real-time Feedback**: Instant visual confirmation and progress indicators
+- **Accessibility**: WCAG 2.1 compliant design standards
+
+---
+
 ## 🧠 Model Architecture
 
 ### 🏗️ **DenseNet-121 Foundation**
