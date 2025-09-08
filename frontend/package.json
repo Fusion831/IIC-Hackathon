@@ -1,0 +1,33 @@
+{
+  "name": "clairx-frontend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ClairX - AI-powered chest X-ray analysis frontend",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 3000"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vite": "^4.4.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fusion831/IIC-Hackathon.git"
+  },
+  "keywords": [
+    "medical",
+    "ai",
+    "xray",
+    "analysis",
+    "healthcare"
+  ],
+  "author": "ClairX Team",
+  "license": "MIT"
+}

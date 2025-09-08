@@ -7,8 +7,35 @@ const CONFIG = {
             return 'http://127.0.0.1:8000';
         }
         
+        // For Vercel production, try multiple ways to get the API URL
         
-        return import.meta.env.VITE_API_URL || 'API_URL_NOT_SET';
+        // 1. Check Vite environment variables (works with Vite build)
+        try {
+            if (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL !== 'API_URL_NOT_SET') {
+                return import.meta.env.VITE_API_URL;
+            }
+        } catch (e) {
+            // import.meta.env not available, continue with other methods
+        }
+        
+        
+        if (typeof window !== 'undefined' && window.ENV_CONFIG && window.ENV_CONFIG.API_URL && !window.ENV_CONFIG.API_URL.includes('%')) {
+            return window.ENV_CONFIG.API_URL;
+        }
+        
+        
+        if (typeof window !== 'undefined' && window.VITE_API_URL) {
+            return window.VITE_API_URL;
+        }
+        
+        
+        const metaApiUrl = document.querySelector('meta[name="api-url"]');
+        if (metaApiUrl) {
+            return metaApiUrl.getAttribute('content');
+        }
+        
+        // 5. Fallback for development/testing
+        return 'API_URL_NOT_SET';
     },
     
     

@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NEXUS - X-Ray Analysis</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Environment variables injection for Vercel -->
+    <script>
+        // This will be replaced by Vercel build process if needed
+        window.ENV_CONFIG = {
+            API_URL: '%VITE_API_URL%' // Vercel will replace this during build
+        };
+    </script>
 </head>
 <body>
     <!-- Loading Screen -->
