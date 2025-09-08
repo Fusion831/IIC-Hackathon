@@ -6,7 +6,7 @@ import base64
 API_URL = "http://127.0.0.1:8000/analyze"
 
 
-IMAGE_PATH = "test_cxr.png"
+IMAGE_PATH = r"test_cxr.png"
 
 
 def run_api_test():
@@ -86,4 +86,3 @@ def run_api_test():
 
 if __name__ == "__main__":
     run_api_test()
-

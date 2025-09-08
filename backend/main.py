@@ -102,7 +102,12 @@ async def analyze_cxr(image: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model inference error: {str(e)}")
 
-    probabilities = {label: float(prob) for label, prob in zip(NIH14_CLASSES, probs_list)}
+    # Get all probabilities with their class names
+    all_probabilities = {label: float(prob) for label, prob in zip(NIH14_CLASSES, probs_list)}
+    
+    # Sort probabilities in descending order and get top 5
+    sorted_probs = sorted(all_probabilities.items(), key=lambda x: x[1], reverse=True)
+    top_5_probabilities = dict(sorted_probs[:5])
 
     heatmap_b64_string = None
     if np.any(probs_list):
@@ -123,8 +128,7 @@ async def analyze_cxr(image: UploadFile = File(...)):
         if success:
             heatmap_b64_string = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode('utf-8')}"
 
-    return AnalysisResponse(probabilities=probabilities, heatmap_image=heatmap_b64_string)
+    return AnalysisResponse(probabilities=top_5_probabilities, heatmap_image=heatmap_b64_string)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
