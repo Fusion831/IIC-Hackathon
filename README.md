@@ -462,43 +462,7 @@ jobs:
 
 ---
 
-## 🤝 Contributing
 
-We welcome contributions from the community! Here's how you can help:
-
-### 🔧 **Development Setup**
-
-1. **Fork the repository**
-2. **Create feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit changes**: `git commit -m 'Add amazing feature'`
-4. **Push to branch**: `git push origin feature/amazing-feature`
-5. **Open Pull Request**
-
-### 📝 **Contribution Guidelines**
-
-- Follow PEP 8 for Python code
-- Use ESLint configuration for JavaScript
-- Add tests for new features
-- Update documentation as needed
-- Ensure all tests pass before submitting
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🏅 Acknowledgments
-
-### 🙏 **Special Thanks**
-
-- **NIH ChestX-ray14 Dataset**: For providing the foundational training data
-- **PyTorch Team**: For the excellent deep learning framework
-- **DenseNet Authors**: For the innovative architecture design
-- **Google Gemini**: For advanced AI report generation capabilities
-- **Hackathon Organizers**: For providing the platform to showcase innovation
 
 ### 📚 **References**
 
@@ -527,19 +491,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-### 🌟 **Star this repository if you find it helpful!**
-
-[![GitHub stars](https://img.shields.io/github/stars/Fusion831/IIC-Hackathon?style=social)](https://github.com/Fusion831/IIC-Hackathon/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/Fusion831/IIC-Hackathon?style=social)](https://github.com/Fusion831/IIC-Hackathon/network/members)
-[![GitHub watchers](https://img.shields.io/github/watchers/Fusion831/IIC-Hackathon?style=social)](https://github.com/Fusion831/IIC-Hackathon/watchers)
-
-**Made with ❤️ for the medical AI community**
-
-*Empowering healthcare through innovative AI solutions*
-
-</div>
-
----
 
 ## 🏷️ **Tags**
 `artificial-intelligence` `medical-imaging` `deep-learning` `healthcare` `computer-vision` `pytorch` `fastapi` `chest-xray` `radiology` `densenet` `grad-cam` `machine-learning` `medical-ai` `hackathon` `python` `javascript` `medical-diagnosis` `ai-healthcare` `pathology-detection` `clinical-decision-support`
