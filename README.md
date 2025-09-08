@@ -97,11 +97,11 @@
 
 #### **First part of Analysis**
 ![Upload Interface](images/starting.jpg)
-*Drag-and-drop X-ray upload with real-time validation*
+*Probability and Heatmap*
 
 #### **Second Part of Analysis**
 ![Analysis Results](images/ending.jpg)
-*Comprehensive analysis display with probabilities, heatmaps, and AI-generated reports*
+*AI Generated Reports*
 
 </div>
 
