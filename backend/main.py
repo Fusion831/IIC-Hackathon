@@ -162,7 +162,19 @@ print(f"--- Model is ready for inference on {device.type.upper()} ---")
 
 
 app = FastAPI(title="Rad-Insight API")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+origins = [
+    "http://localhost",  # For local development
+    "http://127.0.0.1", # For local development
+    "https://iic-hackathon-lilac.vercel.app", # Your deployed Vercel frontend
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class AnalysisResponse(BaseModel):
     probabilities: Dict[str, float]
